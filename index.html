@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSDSD Request Lifecycle</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-dark: #1e293b;
+            --border: #e2e8f0;
+            --border-dark: #cbd5e1;
+            
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
+            
+            --blue: #3b82f6;
+            --blue-light: #eff6ff;
+            --green: #10b981;
+            --green-light: #ecfdf5;
+            --purple: #8b5cf6;
+            --purple-light: #f5f3ff;
+            --orange: #f59e0b;
+            --orange-light: #fffbeb;
+            --red: #ef4444;
+            --red-light: #fef2f2;
+            --cyan: #06b6d4;
+            --cyan-light: #ecfeff;
+            --pink: #ec4899;
+            --pink-light: #fdf2f8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* Header */
+        header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .title-block h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .title-block p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+        }
+
+        .btn-header:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+            background: var(--blue-light);
+        }
+
+        .btn-header.primary {
+            background: var(--blue);
+            color: white;
+            border-color: var(--blue);
+        }
+
+        .btn-header.primary:hover {
+            background: #2563eb;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            min-height: calc(100vh - 89px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section {
+            margin-bottom: 28px;
+        }
+
+        .sidebar-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+
+        /* Phase Navigation */
+        .phase-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .phase-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            background: var(--bg);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .phase-item:hover {
+            border-color: var(--border-dark);
+            transform: translateX(4px);
+        }
+
+        .phase-item.active {
+            background: var(--item-bg);
+            border-color: var(--item-color);
+        }
+
+        .phase-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            background: var(--item-bg);
+            color: var(--item-color);
+            flex-shrink: 0;
+        }
+
+        .phase-item.active .phase-icon {
+            background: var(--item-color);
+            color: white;
+        }
+
+        .phase-text h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+
+        .phase-text p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .stat-box {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            overflow: auto;
+        }
+
+        /* Phase Content Cards */
+        .phase-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .phase-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .phase-header {
+            margin-bottom: 24px;
+        }
+
+        .phase-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .phase-header h2 .badge {
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-weight: 600;
+        }
+
+        .phase-header p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            line-height: 1.6;
+        }
+
+        /* Flow Diagram Container */
+        .flow-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        /* Clean Flow Diagram */
+        .flow-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .flow-node {
+            background: var(--node-bg, var(--bg));
+            border: 2px solid var(--node-color, var(--border));
+            border-radius: 12px;
+            padding: 16px 24px;
+            min-width: 180px;
+            text-align: center;
+            position: relative;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .flow-node:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        .flow-node.start {
+            border-radius: 100px;
+            background: var(--bg-dark);
+            color: white;
+            border-color: var(--bg-dark);
+        }
+
+        .flow-node.decision {
+            border-radius: 12px;
+            transform: rotate(0deg);
+            background: var(--orange-light);
+            border-color: var(--orange);
+        }
+
+        .flow-node .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .flow-node .label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .flow-node.start .label {
+            color: white;
+        }
+
+        .flow-node .sublabel {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .flow-arrow {
+            color: var(--text-light);
+            font-size: 1.25rem;
+        }
+
+        .flow-arrow.down {
+            transform: rotate(90deg);
+        }
+
+        /* Info Cards Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .info-card:hover {
+            border-color: var(--blue);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .info-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .info-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .info-card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .info-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .info-card ul {
+            margin-top: 12px;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .info-card li {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+            border-bottom: 1px solid var(--bg);
+        }
+
+        .info-card li:last-child {
+            border-bottom: none;
+        }
+
+        .info-card li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        /* Costing Table */
+        .cost-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .cost-table th,
+        .cost-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .cost-table th {
+            background: var(--bg);
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .cost-table td {
+            color: var(--text-secondary);
+        }
+
+        .cost-table tr:hover td {
+            background: var(--bg);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .tag.required { background: var(--green-light); color: var(--green); }
+        .tag.optional { background: var(--blue-light); color: var(--blue); }
+        .tag.dynamic { background: var(--purple-light); color: var(--purple); }
+
+        /* Access Matrix */
+        .access-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .access-card {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .access-card .role-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin: 0 auto 12px;
+        }
+
+        .access-card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .access-card p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .phase-nav {
+                flex-direction: row;
+                overflow-x: auto;
+                padding-bottom: 8px;
+            }
+            .phase-item {
+                flex-shrink: 0;
+                min-width: 200px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            header {
+                padding: 16px 20px;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .sidebar {
+                padding: 16px;
+            }
+            .main-content {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-section">
+            <div class="logo">DS</div>
+            <div class="title-block">
+                <h1>DSDSD Request Lifecycle Manager</h1>
+                <p>Complete workflow from request to delivery</p>
+            </div>
+        </div>
+        <div class="header-actions">
+           
+            <button class="btn-header primary" onclick="document.querySelector('.phase-item').click()">
+                <i class="fa-solid fa-play"></i> Start Tour
+            </button>
+<button class="btn-header primary" onclick="window.location.href='dashboard.html'">
+    <i class="fa-solid fa-gauge"></i> Mock dashboard
+</button>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Workflow Phases</div>
+                <nav class="phase-nav">
+                    <div class="phase-item active" data-phase="entry" style="--item-color: var(--green); --item-bg: var(--green-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-inbox"></i></div>
+                        <div class="phase-text">
+                            <h3>1. Request Entry</h3>
+                            <p>3 request channels</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="approval" style="--item-color: var(--orange); --item-bg: var(--orange-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-check-double"></i></div>
+                        <div class="phase-text">
+                            <h3>2. Approval</h3>
+                            <p>Dynamic approvers</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="scope" style="--item-color: var(--blue); --item-bg: var(--blue-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-file-signature"></i></div>
+                        <div class="phase-text">
+                            <h3>3. Scope & Agreement</h3>
+                            <p>Requirements sign-off</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="costing" style="--item-color: var(--cyan); --item-bg: var(--cyan-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-calculator"></i></div>
+                        <div class="phase-text">
+                            <h3>4. Costing</h3>
+                            <p>Factor-based pricing</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="implementation" style="--item-color: var(--purple); --item-bg: var(--purple-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-code"></i></div>
+                        <div class="phase-text">
+                            <h3>5. Implementation</h3>
+                            <p>Development & tracking</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="change" style="--item-color: var(--red); --item-bg: var(--red-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-code-branch"></i></div>
+                        <div class="phase-text">
+                            <h3>6. Change Management</h3>
+                            <p>Scope changes</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="maintenance" style="--item-color: var(--pink); --item-bg: var(--pink-light);">
+                        <div class="phase-icon"><i class="fa-solid fa-wrench"></i></div>
+                        <div class="phase-text">
+                            <h3>7. Maintenance</h3>
+                            <p>Support & feedback</p>
+                        </div>
+                    </div>
+                    <div class="phase-item" data-phase="access" style="--item-color: var(--text-secondary); --item-bg: var(--bg);">
+                        <div class="phase-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div class="phase-text">
+                            <h3>8. Access Control</h3>
+                            <p>Roles & visibility</p>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Quick Stats</div>
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <div class="stat-value">3</div>
+                        <div class="stat-label">Request Types</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">10</div>
+                        <div class="stat-label">Cost Factors</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">User Roles</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">∞</div>
+                        <div class="stat-label">Configurable</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Phase 1: Request Entry -->
+            <div class="phase-content active" id="phase-entry">
+                <div class="phase-header">
+                    <h2>
+                        <span>📥 Request Entry</span>
+                        <span class="badge" style="background: var(--green-light); color: var(--green);">Phase 1</span>
+                    </h2>
+                    <p>All requests enter the system through one of three channels. Team members can capture requests on behalf of senior management or member states who prefer verbal communication.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-diagram">
+                        <div class="flow-row">
+                            <div class="flow-node" style="--node-bg: var(--green-light); --node-color: var(--green);">
+                                <div class="icon">🏢</div>
+                                <div class="label">Cluster Request</div>
+                                <div class="sublabel">UN Units (Admin, Finance, Budget)</div>
+                            </div>
+                            <div class="flow-node" style="--node-bg: var(--orange-light); --node-color: var(--orange);">
+                                <div class="icon">👔</div>
+                                <div class="label">Proxy Request</div>
+                                <div class="sublabel">Member States / Senior Mgmt</div>
+                            </div>
+                            <div class="flow-node" style="--node-bg: var(--blue-light); --node-color: var(--blue);">
+                                <div class="icon">🔄</div>
+                                <div class="label">Inter-Team Request</div>
+                                <div class="sublabel">Web ↔ Data ↔ Infrastructure</div>
+                            </div>
+                        </div>
+                        <div class="flow-row">
+                            <i class="fa-solid fa-arrow-down flow-arrow"></i>
+                        </div>
+                        <div class="flow-row">
+                            <div class="flow-node" style="--node-bg: var(--purple-light); --node-color: var(--purple);">
+                                <div class="icon">🤖</div>
+                                <div class="label">System Ingestion</div>
+                                <div class="sublabel">Auto-route & notify</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--green-light); color: var(--green);">
+                                <i class="fa-solid fa-building"></i>
+                            </div>
+                            <h4>Cluster Request</h4>
+                        </div>
+                        <p>Direct submission from UN internal units through the system portal.</p>
+                        <ul>
+                            <li>Admin Cluster</li>
+                            <li>Finance Cluster</li>
+                            <li>Budget Cluster</li>
+                            <li>Self-service portal</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--orange-light); color: var(--orange);">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <h4>Proxy Request</h4>
+                        </div>
+                        <p>Team captures requests from senior management or member states.</p>
+                        <ul>
+                            <li>Jordan, Qatar, Oman requests</li>
+                            <li>Chief's verbal requests</li>
+                            <li>Meeting follow-ups</li>
+                            <li>Team member enters on behalf</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--blue-light); color: var(--blue);">
+                                <i class="fa-solid fa-arrows-left-right"></i>
+                            </div>
+                            <h4>Inter-Team Request</h4>
+                        </div>
+                        <p>Internal requests between DSDSD teams for project dependencies.</p>
+                        <ul>
+                            <li>Web → Data Engineering</li>
+                            <li>Data → Infrastructure</li>
+                            <li>Can link to existing projects</li>
+                            <li>Or standalone requests</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2: Approval -->
+            <div class="phase-content" id="phase-approval">
+                <div class="phase-header">
+                    <h2>
+                        <span>✅ Approval Process</span>
+                        <span class="badge" style="background: var(--orange-light); color: var(--orange);">Phase 2</span>
+                    </h2>
+                    <p>Dynamic approval workflow with configurable approvers per request type. No hardcoded names - approval lists are managed through the system configuration.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-diagram">
+                        <div class="flow-row">
+                            <div class="flow-node start">
+                                <div class="label">Request Received</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--purple-light); --node-color: var(--purple);">
+                                <div class="icon">🔔</div>
+                                <div class="label">Notify Approvers</div>
+                                <div class="sublabel">Dynamic list per type</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node decision">
+                                <div class="icon">⚖️</div>
+                                <div class="label">Decision</div>
+                            </div>
+                        </div>
+                        <div class="flow-row" style="margin-top: 24px;">
+                            <div class="flow-node" style="--node-bg: var(--green-light); --node-color: var(--green);">
+                                <div class="icon">✅</div>
+                                <div class="label">Approved</div>
+                                <div class="sublabel">→ Assign to team</div>
+                            </div>
+                            <div class="flow-node" style="--node-bg: var(--red-light); --node-color: var(--red);">
+                                <div class="icon">❌</div>
+                                <div class="label">Rejected</div>
+                                <div class="sublabel">With reason</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--blue-light); color: var(--blue);">
+                                <i class="fa-solid fa-users-gear"></i>
+                            </div>
+                            <h4>Dynamic Approvers</h4>
+                        </div>
+                        <p>Approval officers are configured per request type, not hardcoded.</p>
+                        <ul>
+                            <li>Cluster → Group 1 approvers</li>
+                            <li>Proxy → Group 2 approvers</li>
+                            <li>Internal → Group 3 approvers</li>
+                            <li>Add/remove approvers anytime</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--orange-light); color: var(--orange);">
+                                <i class="fa-solid fa-eye"></i>
+                            </div>
+                            <h4>View vs Approve</h4>
+                        </div>
+                        <p>Separate permissions for viewing and approving requests.</p>
+                        <ul>
+                            <li>Approvers can approve/reject</li>
+                            <li>Viewers can monitor only</li>
+                            <li>Ahmad views all, approves strategic</li>
+                            <li>Team leads approve internal</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3: Scope -->
+            <div class="phase-content" id="phase-scope">
+                <div class="phase-header">
+                    <h2>
+                        <span>📝 Scope & Agreement</span>
+                        <span class="badge" style="background: var(--blue-light); color: var(--blue);">Phase 3</span>
+                    </h2>
+                    <p>Critical phase to prevent misunderstandings. Requirements are negotiated, documented, and formally signed off by both parties. This step is <strong>mandatory</strong> - no exceptions.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-diagram">
+                        <div class="flow-row">
+                            <div class="flow-node" style="--node-bg: var(--blue-light); --node-color: var(--blue);">
+                                <div class="icon">🤝</div>
+                                <div class="label">Negotiate Requirements</div>
+                                <div class="sublabel">Meetings & discussions</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--purple-light); --node-color: var(--purple);">
+                                <div class="icon">📄</div>
+                                <div class="label">Document Scope</div>
+                                <div class="sublabel">Upload agreement</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--green-light); --node-color: var(--green);">
+                                <div class="icon">🔒</div>
+                                <div class="label">Seal & Sign-off</div>
+                                <div class="sublabel">Version 1.0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--red-light); color: var(--red);">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                            <h4>Why This Matters</h4>
+                        </div>
+                        <p>Prevents the "we didn't ask for this" problem after delivery.</p>
+                        <ul>
+                            <li>No more misunderstood requirements</li>
+                            <li>Clear accountability</li>
+                            <li>Protects team reputation</li>
+                            <li>Evidence for disputes</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--cyan-light); color: var(--cyan);">
+                                <i class="fa-solid fa-code-branch"></i>
+                            </div>
+                            <h4>Version Control</h4>
+                        </div>
+                        <p>Scope documents are versioned. Changes create new versions.</p>
+                        <ul>
+                            <li>Version 1.0 - Initial agreement</li>
+                            <li>Version 1.1 - Minor changes</li>
+                            <li>Version 2.0 - Major changes</li>
+                            <li>Full audit trail</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4: Costing -->
+            <div class="phase-content" id="phase-costing">
+                <div class="phase-header">
+                    <h2>
+                        <span>💰 Dynamic Costing</span>
+                        <span class="badge" style="background: var(--cyan-light); color: var(--cyan);">Phase 4</span>
+                    </h2>
+                    <p>Factor-based costing system. All parameters are configurable - add new factors anytime without code changes. Prevents inconsistent pricing across projects.</p>
+                </div>
+
+                <div class="flow-container">
+                    <table class="cost-table">
+                        <thead>
+                            <tr>
+                                <th>Factor</th>
+                                <th>Description</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>👷 Resources</strong></td>
+                                <td>ICs, Staff, duration (months)</td>
+                                <td><span class="tag required">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>🖥️ Hosting</strong></td>
+                                <td>Server, cloud infrastructure</td>
+                                <td><span class="tag optional">Optional</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>🔐 SSL/Security</strong></td>
+                                <td>Certificates, cybersecurity</td>
+                                <td><span class="tag optional">Optional</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>📚 Libraries</strong></td>
+                                <td>Tools, licenses, APIs</td>
+                                <td><span class="tag optional">Optional</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>✈️ Travel</strong></td>
+                                <td>On-site visits, training</td>
+                                <td><span class="tag optional">Optional</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>⚠️ Complexity</strong></td>
+                                <td>Multiplier: 1x, 2x, 3x</td>
+                                <td><span class="tag dynamic">Dynamic</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>🌍 Region</strong></td>
+                                <td>Jordan vs Venezuela pricing</td>
+                                <td><span class="tag dynamic">Dynamic</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>🚨 Priority</strong></td>
+                                <td>Normal, High, Urgent</td>
+                                <td><span class="tag dynamic">Dynamic</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>💼 Fund Type</strong></td>
+                                <td>XB, PSC, Regular Budget</td>
+                                <td><span class="tag required">Required</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>➕ Miscellaneous</strong></td>
+                                <td>Adjustments (+/- with reason)</td>
+                                <td><span class="tag optional">Optional</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--green-light); color: var(--green);">
+                                <i class="fa-solid fa-check-double"></i>
+                            </div>
+                            <h4>Benefits</h4>
+                        </div>
+                        <ul>
+                            <li>Consistent pricing across team</li>
+                            <li>No more Anna = 35K, Maroon = 45K</li>
+                            <li>Transparent to stakeholders</li>
+                            <li>Easy to justify costs</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--purple-light); color: var(--purple);">
+                                <i class="fa-solid fa-sliders"></i>
+                            </div>
+                            <h4>Fully Configurable</h4>
+                        </div>
+                        <ul>
+                            <li>Add new factors anytime</li>
+                            <li>Adjust rates without coding</li>
+                            <li>Per-project overrides</li>
+                            <li>Historical rate tracking</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 5: Implementation -->
+            <div class="phase-content" id="phase-implementation">
+                <div class="phase-header">
+                    <h2>
+                        <span>⚙️ Implementation</span>
+                        <span class="badge" style="background: var(--purple-light); color: var(--purple);">Phase 5</span>
+                    </h2>
+                    <p>Development phase with real-time progress tracking. Dashboard shows completion percentage - no more weekly status update meetings needed.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-diagram">
+                        <div class="flow-row">
+                            <div class="flow-node" style="--node-bg: var(--blue-light); --node-color: var(--blue);">
+                                <div class="icon">👥</div>
+                                <div class="label">Assign Team</div>
+                                <div class="sublabel">Lead + resources</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--purple-light); --node-color: var(--purple);">
+                                <div class="icon">⚡</div>
+                                <div class="label">Execute Tasks</div>
+                                <div class="sublabel">Log progress</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--cyan-light); --node-color: var(--cyan);">
+                                <div class="icon">📊</div>
+                                <div class="label">Dashboard Updates</div>
+                                <div class="sublabel">70% → 80% → 90%</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--green-light); --node-color: var(--green);">
+                                <div class="icon">✅</div>
+                                <div class="label">Complete</div>
+                                <div class="sublabel">Deliverables ready</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--blue-light); color: var(--blue);">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <h4>Real-time Visibility</h4>
+                        </div>
+                        <ul>
+                            <li>Clients see own project progress</li>
+                            <li>No need to ask for status</li>
+                            <li>Ahmad sees everything</li>
+                            <li>Eliminates weekly reports</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--orange-light); color: var(--orange);">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <h4>Time Savings</h4>
+                        </div>
+                        <ul>
+                            <li>No manual status updates</li>
+                            <li>No Thursday/Friday reporting</li>
+                            <li>Feed system once, visible everywhere</li>
+                            <li>More time for actual work</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 6: Change Management -->
+            <div class="phase-content" id="phase-change">
+                <div class="phase-header">
+                    <h2>
+                        <span>🔄 Change Management</span>
+                        <span class="badge" style="background: var(--red-light); color: var(--red);">Phase 6</span>
+                    </h2>
+                    <p>Scope changes happen - that's reality. The system tracks all changes with version control. If costs are affected, recalculation is triggered automatically.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-diagram">
+                        <div class="flow-row">
+                            <div class="flow-node decision">
+                                <div class="icon">🔄</div>
+                                <div class="label">Scope Change?</div>
+                            </div>
+                        </div>
+                        <div class="flow-row" style="margin-top: 24px;">
+                            <div class="flow-node" style="--node-bg: var(--red-light); --node-color: var(--red);">
+                                <div class="icon">📝</div>
+                                <div class="label">Document Change</div>
+                                <div class="sublabel">Create change order</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node decision">
+                                <div class="icon">💰</div>
+                                <div class="label">Affects Cost?</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node" style="--node-bg: var(--cyan-light); --node-color: var(--cyan);">
+                                <div class="icon">🔁</div>
+                                <div class="label">Recalculate</div>
+                                <div class="sublabel">Update budget</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--red-light); color: var(--red);">
+                                <i class="fa-solid fa-exclamation-circle"></i>
+                            </div>
+                            <h4>Why Track Changes?</h4>
+                        </div>
+                        <ul>
+                            <li>Scope creep is visible</li>
+                            <li>Justifies delays</li>
+                            <li>"Free" changes still logged</li>
+                            <li>Protects team from blame</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--blue-light); color: var(--blue);">
+                                <i class="fa-solid fa-history"></i>
+                            </div>
+                            <h4>Risk Management</h4>
+                        </div>
+                        <ul>
+                            <li>Track all risk factors</li>
+                            <li>Urgent requests logged</li>
+                            <li>Resource conflicts visible</li>
+                            <li>Priority overrides documented</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 7: Maintenance -->
+            <div class="phase-content" id="phase-maintenance">
+                <div class="phase-header">
+                    <h2>
+                        <span>🔧 Maintenance & Support</span>
+                        <span class="badge" style="background: var(--pink-light); color: var(--pink);">Phase 7</span>
+                    </h2>
+                    <p>After delivery, projects enter maintenance. Issues are triaged - bugs go to fix cycle, new features become new requests, Level 1 support routes to Service Desk.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-diagram">
+                        <div class="flow-row">
+                            <div class="flow-node" style="--node-bg: var(--green-light); --node-color: var(--green);">
+                                <div class="icon">📦</div>
+                                <div class="label">Handover</div>
+                                <div class="sublabel">To support team</div>
+                            </div>
+                            <i class="fa-solid fa-arrow-right flow-arrow"></i>
+                            <div class="flow-node decision">
+                                <div class="icon">🐛</div>
+                                <div class="label">Issue Type?</div>
+                            </div>
+                        </div>
+                        <div class="flow-row" style="margin-top: 24px;">
+                            <div class="flow-node" style="--node-bg: var(--orange-light); --node-color: var(--orange);">
+                                <div class="icon">🔧</div>
+                                <div class="label">Bug/Error</div>
+                                <div class="sublabel">Fix & patch → loop back</div>
+                            </div>
+                            <div class="flow-node" style="--node-bg: var(--purple-light); --node-color: var(--purple);">
+                                <div class="icon">💡</div>
+                                <div class="label">New Feature</div>
+                                <div class="sublabel">→ New request</div>
+                            </div>
+                            <div class="flow-node" style="--node-bg: var(--bg); --node-color: var(--text-secondary);">
+                                <div class="icon">📞</div>
+                                <div class="label">Level 1 Support</div>
+                                <div class="sublabel">→ Service Desk</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--green-light); color: var(--green);">
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <h4>User Feedback</h4>
+                        </div>
+                        <p>Uber-style rating system at project completion.</p>
+                        <ul>
+                            <li>1-5 star rating</li>
+                            <li>Comments & feedback</li>
+                            <li>Used for performance tracking</li>
+                            <li>Stored in knowledge base</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--cyan-light); color: var(--cyan);">
+                                <i class="fa-solid fa-rotate"></i>
+                            </div>
+                            <h4>Feedback Loop</h4>
+                        </div>
+                        <p>Enhancement requests automatically re-enter the system.</p>
+                        <ul>
+                            <li>New feature → Create enhancement</li>
+                            <li>Convert to new request</li>
+                            <li>Full lifecycle restart</li>
+                            <li>Linked to original project</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 8: Access Control -->
+            <div class="phase-content" id="phase-access">
+                <div class="phase-header">
+                    <h2>
+                        <span>🔐 Access Control</span>
+                        <span class="badge" style="background: var(--bg); color: var(--text-secondary);">Roles</span>
+                    </h2>
+                    <p>Role-based access ensures everyone sees only what they need. Clients track their own projects, team leads manage their teams, Ahmad has the God view.</p>
+                </div>
+
+                <div class="flow-container">
+                    <div class="access-matrix">
+                        <div class="access-card">
+                            <div class="role-icon" style="background: var(--green-light); color: var(--green);">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <h4>Client Portal</h4>
+                            <p>View only their own projects and progress</p>
+                        </div>
+                        <div class="access-card">
+                            <div class="role-icon" style="background: var(--blue-light); color: var(--blue);">
+                                <i class="fa-solid fa-user-gear"></i>
+                            </div>
+                            <h4>Team Member</h4>
+                            <p>Update assigned tasks, view team projects</p>
+                        </div>
+                        <div class="access-card">
+                            <div class="role-icon" style="background: var(--purple-light); color: var(--purple);">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <h4>Team Lead</h4>
+                            <p>Full access to team projects, assign work</p>
+                        </div>
+                        <div class="access-card">
+                            <div class="role-icon" style="background: var(--orange-light); color: var(--orange);">
+                                <i class="fa-solid fa-crown"></i>
+                            </div>
+                            <h4>God Admin</h4>
+                            <p>Full access to everything, all divisions</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--blue-light); color: var(--blue);">
+                                <i class="fa-solid fa-sitemap"></i>
+                            </div>
+                            <h4>Visibility Hierarchy</h4>
+                        </div>
+                        <ul>
+                            <li>Client → Own projects only</li>
+                            <li>Team Member → Assigned tasks</li>
+                            <li>Team Lead → All team projects</li>
+                            <li>Section Chief → All section projects</li>
+                            <li>Ahmad → Everything (God Admin)</li>
+                        </ul>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <div class="info-card-icon" style="background: var(--green-light); color: var(--green);">
+                                <i class="fa-solid fa-shield-check"></i>
+                            </div>
+                            <h4>Security Benefits</h4>
+                        </div>
+                        <ul>
+                            <li>No unauthorized access</li>
+                            <li>Audit trail for all views</li>
+                            <li>Configurable permissions</li>
+                            <li>Dynamic role assignment</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Phase navigation
+        document.querySelectorAll('.phase-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // Update active nav item
+                document.querySelectorAll('.phase-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Show corresponding content
+                const phase = item.dataset.phase;
+                document.querySelectorAll('.phase-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`phase-${phase}`).classList.add('active');
+            });
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const items = Array.from(document.querySelectorAll('.phase-item'));
+            const currentIndex = items.findIndex(item => item.classList.contains('active'));
+            
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const nextIndex = (currentIndex + 1) % items.length;
+                items[nextIndex].click();
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const prevIndex = (currentIndex - 1 + items.length) % items.length;
+                items[prevIndex].click();
+            }
+        });
+
+        // Auto-tour functionality
+        let tourInterval;
+        document.querySelector('.btn-header.primary').addEventListener('click', function() {
+            const items = document.querySelectorAll('.phase-item');
+            let index = 0;
+            
+            if (this.textContent.includes('Start')) {
+                this.innerHTML = '<i class="fa-solid fa-stop"></i> Stop Tour';
+                tourInterval = setInterval(() => {
+                    items[index].click();
+                    index = (index + 1) % items.length;
+                }, 4000);
+            } else {
+                this.innerHTML = '<i class="fa-solid fa-play"></i> Start Tour';
+                clearInterval(tourInterval);
+            }
+        });
+    </script>
+</body>
+</html>
